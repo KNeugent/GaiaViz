@@ -1,0 +1,448 @@
+<!DOCTYPE HTML>
+<html xml:lang="en" lang="en">
+<meta charset="utf-8">
+<head>
+  <title>CSE512 | A3 A tour of the solar neighborhood, examining the brightest 1000 stars in GAIA</title>
+  <style media="all">
+* { padding: 0; margin: 0; }
+
+body {
+  margin: 0 auto 0 auto;
+  padding: 0;
+  max-width: 1200px;
+  font-family: Arial;
+  font-size: 0.95em;
+  fill: white;
+  color: white;
+}
+
+a, a:visited { text-decoration: none; color: white; }
+a:hover { text-decoration: underline; color: white; }
+
+h1, h2, h3, h4, h5 {
+  color: white;
+  background-color: inherit;
+  font-weight: normal;
+  padding: 0 0 5px 0;
+  margin: 15px 0 0 0;
+  border: none;
+  clear: right;
+}
+h1 { font-size: 24pt; margin:  5px 0 10px 0; line-height: 28px; }
+h2 { font-size: 14pt; margin: 30px 0 15px 0; letter-spacing: 0.01em; border-bottom: 1px solid #ccc;  line-height: 20px;}
+h3 { font-size: 13pt; }
+h4 { font-size: 12pt; }
+h5 { font-size: 11pt; }
+p { margin: 0 0 10px 0; }
+
+.content {
+  margin: 0;
+  padding: 15px 20px;
+  background-color: black;
+}
+
+.title, .title h1, .title a {
+  color: white;
+  font-size: 24pt;
+  margin-bottom: 20px;
+  margin-top: 5px;
+}
+
+.footer {
+  border-top: 1px solid #ccc;
+  margin-top: 30px;
+  padding-top: 4px;
+  text-align: right;
+  font-size: 12px;
+}
+.footer a {
+  color: white;
+}
+.footer a:hover {
+  color: white;
+}
+
+body {
+  font: 12px Arial;
+  background-color: black;
+}
+
+.axis path,
+.axis line {
+  fill: black;
+  stroke: black;
+  shape-rendering: crispEdges;
+}
+
+.circle{
+      fill-opacity: 1;
+    }
+
+div.tooltip {
+    position: absolute;
+    text-align: center;
+    width: 120px;
+    height: 42px;
+    padding: 2px;
+    font: 12px Arial;
+    background: white;
+    border: 0px;
+    border-radius: 8px;
+    pointer-events: none;
+    color: black;
+}
+
+.zoom {
+  cursor: move;
+  fill: none;
+  pointer-events: all;
+}
+
+</style>
+
+
+</head>
+<body>
+<div class="content">
+
+  <section class="title">
+    <a href="https://github.com/cse512-18s/A3-solar-neighborhood-tour/blob/master/gaiaViz/viz.html">A tour of the solar neighborhood, examining the brightest 1000 stars in GAIA</a>
+  </section>
+
+  <section>
+    <p>
+      <strong>Team Members</strong>: David Fleming, Joachim Moeyens, Kathryn Neugent, and Matthew Wilde
+    </p>
+  </section>
+
+  <section>
+    <div align="left">
+    <h4 style="color:white"> This d3 visualization helps you explore the brightest nearby stars. Hover over each star to get its mass (in terms of the mass of the sun), luminosity (in terms of the luminosity of the sun) and spectral type. Then, pan and zoom through the stars to get a better look. The sizes of the circles are scaled with the true radii of each individual star and the colors of the circles represent their true temperatures (with blue/white being the hottest stars and red/yellow being the coolest). If you want to explore a certain spectral type, use the drop-down box to select individual types.</h4>
+    <p style="color:white"><a href="http://dc.zah.uni-heidelberg.de/tableinfo/gdr2mock.main">Simulated GAIAData Release 2 (DR2) Data</a>, <a href="https://arxiv.org/abs/1804.01427">Simulated GAIA DR2 Paper</a></p>
+
+    <!-- load scale-chromatic utilities -->
+    <script src="https://d3js.org/d3-color.v1.min.js"></script>
+    <script src="https://d3js.org/d3-interpolate.v1.min.js"></script>
+    <script src="https://d3js.org/d3-scale-chromatic.v1.min.js"></script>
+    <!-- load colorbrewer -->
+    <script src="http://d3js.org/colorbrewer.v1.min.js"></script>
+    <!-- load the d3.js library -->
+    <script src="https://d3js.org/d3.v4.min.js"></script>
+
+    <!-- Define drop-down menu for selecting spectral type -->
+    <div id="spectralType"></div>
+    <div id="showAll">
+      <input name="showAllButton"
+       type="button"
+       value="Show All Spectral Types">
+    </div>
+
+    <script>
+
+    // Figure style adapted from http://bl.ocks.org/weiglemc/6185069
+    // tooltip style, D3 code adapted from http://bl.ocks.org/d3noob/a22c42db65eb00d4e369
+    // Drop down menu https://bl.ocks.org/ProQuestionAsker/8382f70af7f4a7355827c6dc4ee8817d
+    // Zoom functionality https://bl.ocks.org/rutgerhofste/5bd5b06f7817f0ff3ba1daa64dee629d
+
+    // set the dimensions and margins of the graph
+    // milkyway.png
+    //var margin = {top: 10, right: 10, bottom: 10, left: 10},
+    //    width = 1000 - margin.left - margin.right,
+    //    height = 500 - margin.top - margin.bottom;
+
+    // bwMW
+    // var margin = {top: 0, right: 0, bottom:10, left: 10},
+    //     width = 1000 - margin.left - margin.right,
+    //     height = 450 - margin.top - margin.bottom;
+
+    // MW
+    var margin = {top: 10, right: 0, bottom: 10, left: 10},
+         width = 1000 - margin.left - margin.right,
+         height = 500 - margin.top - margin.bottom;
+
+    // Set the ranges
+    var x = d3.scaleLinear().range([0, width]);
+    var y = d3.scaleLinear().range([height, 0]);
+
+    // Add axes
+    var xAxis = d3.axisBottom(x);
+    var yAxis = d3.axisLeft(y);
+
+    // Define a zoom function variable
+    var zoom = d3.zoom()
+        .on("zoom", zoomed);
+
+    // Append the svg obgect to the body of the page
+    // and move group element to top left margin
+    var svg = d3.select(".content")
+        .append("svg")
+        .attr("width", width + margin.left + margin.right)
+        .attr("height", height + margin.top + margin.bottom)
+        .call(zoom);
+
+    // Add background image
+    //svg.append('svg:image')
+    //  .attr("width","100%")
+    //  .attr("height","100%")
+    //  .attr("xlink:href",'milkyway.png');
+    //  .attr("xlink:href",'bwMW.jpg');
+    //  .attr("xlink:href",'MW.jpg');
+
+    // Add black background
+     svg.append("rect")
+       .attr("width", "100%")
+       .attr("height", "100%")
+       .attr("fill", "black");
+
+
+    // Setup point fill color for continous
+    //var color = d3.scaleSequential(d3.interpolateRdYlBu)
+    //    .domain([2500, 20000])
+    //var color = d3.scaleLinear()
+    //  .domain([2500, 10000, 25000])
+    //  .range(colorbrewer.RdYlBu[3]);
+
+    // Catagorical color for stellar spectral type
+    var color = d3.scaleOrdinal()
+      .domain(["M", "K", "G", "F", "A", "B", "O"])
+      .range(["#ffcc6f", "#ffd2a1", "#fff4ea", "#f8f7ff", "#cad7ff", "#aabfff", "#9bb0ff"]);
+
+    // Define the tooltip
+    var div = d3.select(".content").append("div")
+        .attr("class", "tooltip")
+        .style("opacity", 0);
+
+    // Draw Axis
+    var drawXaxis = svg.append("g")
+        .attr("class", "axis axis--x")
+        .attr("transform", "translate(0," + height + ")")
+        .call(xAxis);
+    var drawYaxis = svg.append("g")
+        .attr("class", "axis axis--y")
+        .call(yAxis);
+
+
+    // Actually define a zoom function that rescales axes
+    // and drawn dots
+    function zoomed(){
+      // Create new scale objects
+      var new_xScale = d3.event.transform.rescaleX(x)
+      var new_yScale = d3.event.transform.rescaleY(y)
+      console.log(d3.event.transform)
+
+      // Update the axes
+      drawXaxis.call(xAxis.scale(new_xScale));
+      drawYaxis.call(yAxis.scale(new_yScale));
+
+      // Update drawn stars
+      d3.selectAll(".dot").attr("transform", d3.event.transform)
+
+    };
+
+    // Load the data
+    d3.csv("gaia_spectype.csv", function(error, data) {
+      if (error) throw error;
+
+      // Convert some values to floats
+      data.forEach(function(d) {
+          d.ra = +d.ra;
+          d.dec = +d.dec;
+          d.teff = +d.teff;
+          d.mass = +d.mass;
+          d.radius = +d.radius;
+      });
+
+      // Create a nest on data keyed on spectral type
+      var nest = d3.nest()
+        .key(function(d){
+          return d.spectype
+        })
+        .entries(data)
+
+      // Scale the range of the data based off RA, DEC x, y position
+      //x.domain([d3.min(data, function(d) { return d.ra; }), d3.max(data, function(d) { return d.ra; })]);
+      //y.domain([d3.min(data, function(d) { return d.dec; }), d3.max(data, function(d) { return d.dec; })]);
+      x.domain([0, 360])
+      y.domain([-90,90])
+
+      // Create show all button variable
+      var showAll = d3.select("#showAll")
+
+      // Create a spectral type drop down menu
+      var specMenu = d3.select("#spectralType")
+
+      specMenu.append("select")
+        .selectAll("option")
+          .data(nest)
+          .enter()
+          .append("option")
+          .attr("value", function(d){
+            return d.key;
+          })
+          .text(function(d){
+            return d.key;
+          })
+
+
+      // Plot the entire data set
+      var plotAll = function(){
+
+         svg.selectAll(".dot")
+          .data(data)
+          .enter()
+          .append("circle")
+          .attr("class", "dot")
+          .attr('r', function(d){
+            return (0.75*Math.log(d.radius));
+          })
+          .attr("cx", function(d) { return x(d.ra); })
+          .attr("cy", function(d) { return y(d.dec); })
+          .style("fill", function(d) { return color(d.spectype); })
+          .on("mouseover", function(d) {
+              div.transition()
+                .duration(200)
+                .style("opacity", .9);
+              div.html("Mass: " + d3.format(".2f")(d.mass) + " [Msun]" + "<br/>" + "Lum: "
+                          + d3.format(".0f")(d.lum) + " [Lsun]" + "<br/>" + "Spectral Type: " + d.spectype)
+                .style("left", (d3.event.pageX) + "px")
+                .style("top", (d3.event.pageY - 28) + "px");
+          })
+          .on("mouseout", function(d) {
+              div.transition()
+                .duration(500)
+                .style("opacity", 0);
+          });
+      }
+
+      // Plot only a single spectral type
+      var plotSpec = function(specType){
+
+        var selectSpecType = nest.filter(function(d){
+          return d.key == specType;
+        })
+
+        var selectSpecTypeGroup = svg.selectAll(".spectype")
+          .data(selectSpecType, function(d){
+            return d ? d.key : this.key;
+          })
+          .enter()
+          .append("g")
+          .attr("class", "specType")
+
+        var plotStars = selectSpecTypeGroup.selectAll(".dot")
+          .data(function(d) { return d.values; })
+          .enter()
+          .append("circle")
+          .attr("class", "dot")
+          .attr('r', function(d){
+            return (0.5*Math.log(d.radius));
+          })
+          .attr("cx", function(d) { return x(d.ra); })
+          .attr("cy", function(d) { return y(d.dec); })
+          .style("fill", function(d) { return color(d.spectype); })
+          .on("mouseover", function(d) {
+              div.transition()
+                .duration(200)
+                .style("opacity", .9);
+              div.html("Mass: " + d3.format(".2f")(d.mass) + " [Msun]" + "<br/>" + "Lum: "
+                          + d3.format(".0f")(d.lum) + " [Lsun]" + "<br/>" + "Spectral Type: " + d.spectype)
+                .style("left", (d3.event.pageX) + "px")
+                .style("top", (d3.event.pageY - 28) + "px");
+          })
+          .on("mouseout", function(d) {
+              div.transition()
+                .duration(500)
+                .style("opacity", 0);
+          });
+
+      }
+
+
+      // Drop down menu plot update function
+      var updatePlot = function(specType){
+
+        // Remove all previously plotted points
+        svg.selectAll(".dot").remove()
+
+        // Update plot with new spectral type
+        plotSpec(specType)
+
+      }
+
+      // Track the dropdown menu and update plot when change is detected
+      specMenu.on('change', function(){
+
+        var selectedType = d3.select(this)
+          .select("select")
+          .property("value")
+
+          updatePlot(selectedType)
+
+      });
+
+      // Track show all button, plot all on change
+      showAll.on("click", function(){
+        plotAll()
+      });
+
+      // Initialize the plot by plotting everything
+      plotAll()
+
+    });
+
+    </script>
+  </section>
+
+  <section>
+    <h2>Design Rationale</h2>
+      <p>On April 25, GAIA Data Release 2 (DR2) was made available to the public. This dataset contains position information for over 1 billion sources. Matched with other databases, many of these stars now have positions, brightnesses as well as physical parameters (masses, temperatures, etc.). We wanted to investigate this new dataset as part of our project. However, incorporating over a billion sources seemed a bit much for our homework assignment so we stuck to the 1000 brightest stars in GAIA. </p>
+      <p>To begin with, we were interested in the position distribution of these stars. We decided to map the radial coordinates of the stars to degrees. There is no axis as there is really no preferential direction in our universe. As you can see, the stars are relatively evenly seen throughout the sky. With more stars, the arms of the Milky Way would appear as would more structure, but that is difficult to see with only 1000 stars.</p> 
+      <p>We next mapped the star's stellar radii to the radial extent of their points. Thus, the larger the star's radius, the larger the point. We additionally associated the stellar temperature to a color where blue / white dots are hotter and orange / red dots are cooler. Looking at the data, we found what we expected to find -- stars with larger radii are cooler than stars with small radii. </p>
+     <p>The temperature of the star is also related to its spectral type. Spectral types have five categories: O and B stars are hot (blue) stars; A, F, and G stars are warm (yellowish) stars; K and M are (orange / red) cool stars. To view the stars of individual spectral types, we created a drop down menu. Notice that there are very few cool stars (O stars, for example) while there are a lot of the larger hotter stars (K and M stars). If you want to return to seeing all the stars, there's the button "Show All Spectral Types."</p>
+	<p> Next we were interested in investigating each star on a case by case basis. Thus, we implemented the functionality that allows you to hover over individual stars and learn their mass (in terms of the mass of the sun), luminosity (in terms of the luminosity of the sun) and spectral type. So, if we're interested in a particular star, we can just hover over it.</p>
+	<p> It is also possible to investigate certain clusters or sets of stars by panning and zooming. Once we've panned in on a star it is still possible to hover over the star and learn it's physical properties. Then, we can pan side to side to see nearby stars.</p>
+	<p> Each one of these aspects allowed us to learn more about the position, size, temperature, luminosity, mass and spectral type of the closest 1000 stars. In terms of overall implementation, we used pan and zoom, a drop down menu, reset state using a button, hovering capabilities, and radius and temperature mapping. </p>
+	<p> In terms of alternatives, we considered including even more stars but decided against this since it would be more difficult to hover over individual stars and get their parameters if the visualization became too dense. We additionally considered putting a background in the image but it was also difficult to see the individual stars that way (also, see below for more information). But, in general, we stuck with our design choices barring implementation difficulties.</p>
+    </p>
+  </section>
+
+  <section>
+    <h2>Design &amp; Development Process</h2>
+    <p> Describing the successes, here was the overall process:
+    <ol>
+	    <li> Created the scatter plot of stars on a black background</li>
+	    <li> Encoded circle sizes and colors based on star radii and temperature</li>
+	    <li> Implemented hover feature (for mass, luminosity and spectral type)</li>
+	    <li> Programmed a drop-down menu for spectral type</li>
+	    <li> Added pan/zoom capabilities </li>
+	    <li> Cleaned up the site visually </li>
+	    <li> Finished write-up </li>
+	</ol>
+	</p>
+	<h4> Total time: </h4>
+<!-- 
+// Figure style adapted from http://bl.ocks.org/weiglemc/6185069
+// tooltip style, D3 code adapted from http://bl.ocks.org/d3noob/a22c42db65eb00d4e369
+// Drop down menu https://bl.ocks.org/ProQuestionAsker/8382f70af7f4a7355827c6dc4ee8817d
+// Zoom functionality https://bl.ocks.org/rutgerhofste/5bd5b06f7817f0ff3ba1daa64dee629d
+ -->
+
+<h5>David Fleming</h5>
+<p> </p>
+<h5>Joachim Moeyens</h5>
+<p> </p>
+<h5>Kathryn Neugent</h5>
+	<p>My two main successes were cleaning up the website so it looked a bit better and writing this write-up. I additionally added images to the back of the stars but we ended up not using those because for one, they were really crowded, and for two, I couldn't get them to pan and zoom with the stars. So instead it was just an image of the Milky Way that stayed static while the stars changed. It wasn't very visually appealing even if it was functional. In an attempt to fix this, I also tried making a toggle button that allowed you to toggle between the black background and the Milky Way background. I made it to the point of toggling correctly but I couldn't get the Milky Way image to appear. I could only toggle between two colors. I was using this as a guide: <a href="http://bl.ocks.org/nikhilNathwani/5dca6c63a53934185d05">Toggle Example</a>. Basically, I had the sad experience of spending a whole lot of time without achieving wonderful results. I did learn a lot about d3 though!</p>
+	
+<h5>Matthew Wilde</h5>
+<p> </p>
+  </section>
+
+  <div class="footer">
+    <a href="https://cse512-18s.github.io/">CSE 512 Data Visualization</a> -
+    <a href="http://www.washington.edu">University of Washington</a>
+  </div>
+
+</div>
+</body>
+</html>
